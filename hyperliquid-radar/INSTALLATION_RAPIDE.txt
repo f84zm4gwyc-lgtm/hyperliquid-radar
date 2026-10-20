@@ -1,0 +1,13 @@
+RADAR HYPERLIQUID — INSTALLATION COURTE
+
+1) Sur PC, crée un dépôt GitHub PUBLIC nommé hyperliquid-radar :
+   https://github.com/new
+2) Décompresse hyperliquid-radar-github.zip.
+3) Sur la page de ton dépôt, Add file > Upload files : importe le CONTENU du dossier décompressé, en conservant le sous-dossier caché .github/workflows/.
+   (Si tu ne peux pas importer les dossiers, crée manuellement .github/workflows/update-radar.yml avec le fichier fourni, puis importe radar.py et requirements.txt à la racine.)
+4) Ouvre Actions > Actualiser radar Hyperliquid BTC/ETH > Run workflow.
+5) Attends le voyant vert puis ouvre docs/report.md.
+6) Envoie-moi l'URL GitHub du rapport pour raccorder le radar ChatGPT.
+
+Tout est en lecture seule, aucun accès à ton wallet. Le radar ChatGPT n'est PAS encore connecté à ce rapport. 
+Important : 30 minutes = intervalle GitHub approximatif, PAS des données en streaming.
