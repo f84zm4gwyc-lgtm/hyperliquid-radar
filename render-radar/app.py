@@ -1,7 +1,7 @@
 """BTC/ETH Hyperliquid *read-only* WebSocket observability service.
 
-Render deployment: Python, build `pip install -r radar-render/requirements.txt`,
-start `python radar-render/app.py`, health GET /healthz. No account access.
+Render deployment: Python, build `pip install -r render-radar/requirements.txt`,
+start `python render-radar/app.py`, health GET /healthz. No account access.
 
 No broker keys / no private endpoints / no order execution / no monetary advice.
 """
@@ -15,6 +15,8 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+from time import sleep
 
 from aiohttp import web
 from websockets.asyncio.client import connect
@@ -26,7 +28,9 @@ WS_URL='wss://api.hyperliquid.xyz/ws'
 API_URL='https://api.hyperliquid.xyz/info'
 PORT=int(os.getenv('PORT','10000'))
 DB_PATH=Path(os.getenv('RADAR_DB_PATH','/tmp/radar_ws.sqlite3'))
-HISTORY_LENGTH=365
+HISTORY_LENGTH=270
+# Prioritize the 15m setup and 1h/4h context; 5m arrives via WebSocket.
+HISTORY_TFS=('15m','1h','4h')
 # Does NOT promise instant execution and does not send trading notifications.
 
 
@@ -34,14 +38,33 @@ def utc_seconds(seconds):
     return datetime.fromtimestamp(seconds,timezone.utc).isoformat()
 
 
+def read_rest_with_backoff(request, *, max_attempts=5):
+    """Retry *only* REST HTTP 429, obeying a bounded Retry-After.
+
+    429 can occur on cloud IPs shared by other customers. Never spin in a
+    tight loop and never turn a failed bootstrap into a trading signal.
+    """
+    for attempt in range(max_attempts):
+        try:
+            with urlopen(request,timeout=20) as response:
+                return json.load(response)
+        except HTTPError as error:
+            if error.code != 429 or attempt==max_attempts-1:
+                raise
+            header=error.headers.get('Retry-After') if error.headers else None
+            try: delay=float(header)
+            except (ValueError,TypeError):delay=[5,10,20,30,45][min(attempt,4)]
+            if not (0<delay<=120):delay=[5,10,20,30,45][min(attempt,4)]
+            LOG.warning('Hyperliquid REST 429; wait %.1fs before retry %d/%d',delay,attempt+2,max_attempts)
+            sleep(delay)
+
 def get_bars(coin,tf):
     period=TF_MS[tf];now_ms=int(time.time()*1000)
     payload=json.dumps({'type':'candleSnapshot','req':{'coin':coin,'interval':tf,
       'startTime':now_ms-(HISTORY_LENGTH+2)*period,'endTime':now_ms}}).encode()
     request=Request(API_URL,data=payload,headers={'Content-Type':'application/json',
                                                'User-Agent':'RadarWSReadOnly/1.0'},method='POST')
-    with urlopen(request,timeout=20) as response:
-        bars=json.load(response)
+    bars=read_rest_with_backoff(request)
     clean=[]
     for bar in bars:
         if int(bar['T'])+1<=now_ms-1500:clean.append(check_bar(bar))
@@ -71,184 +94,3 @@ class MarketEngine:
 
     def _persist_candidate(self,item):
         before=self.conn.total_changes
-        self.conn.execute('INSERT OR IGNORE INTO candidates VALUES (?,?,?)',
-                         (item['id'],time.time(),json.dumps(item)))
-        self.conn.commit()
-        if self.conn.total_changes!=before:
-            self.events.insert(0,item);self.events=self.events[:20]
-            LOG.info('WATCH_ONLY candidate %s',item['id'])
-
-    def merge_bars(self,coin,tf,new):
-        # Reject bar regressions (after reconnection earlier bars can be replayed),
-        # but allow overwriting recently closed data after bootstrap.
-        existing=self.bars[(coin,tf)]
-        for bar in new:
-            existing[bar['t']]=bar
-        if len(existing)>HISTORY_LENGTH:
-            for k in sorted(existing)[:-HISTORY_LENGTH]:existing.pop(k,None)
-
-    def verify_candidates(self,coin,now_ms):
-        b15=self.bars[(coin,'15m')]
-        if len(b15)<35:return
-        # Identify the most recent *completed* bar. The WebSocket typically
-        # publishes a NEW unfinished bar before this function is called.
-        closed=sorted((x for x in b15.values() if x['T']+1+3000<=now_ms),key=lambda x:x['t'])
-        if len(closed)<35:return
-        recent=closed[-21:]
-        if any(recent[i]['t']-recent[i-1]['t']!=TF_MS['15m'] for i in range(1,len(recent))):
-            return  # gap on reconnect: never infer a breakout from missing bars
-        cut=closed[-1]['T']+1
-        h1=aligned_bars(sorted(self.bars[(coin,'1h')].values(),key=lambda x:x['t']),cut)
-        h4=aligned_bars(sorted(self.bars[(coin,'4h')].values(),key=lambda x:x['t']),cut)
-        result=candidate(coin,closed,h1,h4)
-        if result:self._persist_candidate(result)
-
-    async def refresh_history(self):
-        pairs=[(coin,tf) for coin in PAIRS for tf in TF_MS]
-        # Sequential small API requests, run off event loop. No API writes.
-        for coin,tf in pairs:
-            try:
-                history=await asyncio.to_thread(get_bars,coin,tf)
-                self.merge_bars(coin,tf,history)
-            except Exception as exc:
-                self.history_error=f'{coin} {tf}: {type(exc).__name__}: {exc}'
-                self.data_errors+=1;LOG.warning('REST history refresh: %s',self.history_error)
-                return False
-        self.last_history_refresh_at=time.time();self.history_refreshes+=1
-        self.history_error=None
-        for coin in PAIRS:self.verify_candidates(coin,int(time.time()*1000))
-        return True
-
-    def process_message(self,msg):
-        channel=msg.get('channel');data=msg.get('data')
-        now_ms=int(time.time()*1000)
-        if channel in ('subscriptionResponse','pong') or not isinstance(data,(dict,list)):
-            return
-        if channel=='bbo':
-            coin=data.get('coin');bidask=data.get('bbo')
-            if coin not in PAIRS or not isinstance(bidask,list) or len(bidask)!=2 or not all(bidask):return
-            try:
-                b,a=float(bidask[0]['px']),float(bidask[1]['px']);ts=int(data['time'])
-                if b<=0 or a<=b or abs(now_ms-ts)>30_000:return
-                self.book[coin]={'bid':b,'ask':a,'observed_at':utc_seconds(ts/1000),'_ts':time.time()}
-            except (ValueError,TypeError,KeyError):self.data_errors+=1
-        elif channel=='activeAssetCtx':
-            coin=data.get('coin');ctx=data.get('ctx') or data.get('context')
-            if coin not in PAIRS or not isinstance(ctx,dict):return
-            try:
-                mark=float(ctx['markPx'])
-                if mark<=0:return
-                self.mark[coin]={'mark':mark,'open_interest':float(ctx.get('openInterest',0)),
-                                 'funding_rate':float(ctx.get('funding',0)),
-                                 'observed_at':utc_seconds(time.time()),'_ts':time.time()}
-            except (KeyError,ValueError,TypeError):self.data_errors+=1
-        elif channel=='candle':
-            values=data if isinstance(data,list) else [data]
-            for v in values:
-                try:bar=check_bar(v)
-                except ValueError:self.data_errors+=1;continue
-                self.merge_bars(bar['s'],bar['i'],[bar])
-                if bar['i']=='15m':self.verify_candidates(bar['s'],now_ms)
-
-    def readiness(self):
-        if not self.connected:return False,'ws_disconnected'
-        if not self.last_ws_at or time.time()-self.last_ws_at>65:return False,'ws_no_recent_messages'
-        if not self.last_history_refresh_at or time.time()-self.last_history_refresh_at>1200:return False,'history_stale'
-        if self.history_error:return False,'history_error'
-        # BBO may be silent when prices do not change: do not manufacture freshness.
-        for coin in PAIRS:
-            if coin not in self.mark or time.time()-self.mark[coin]['_ts']>120:return False,f'{coin}_mark_stale'
-            if len(self.bars[(coin,'15m')])<230:return False,f'{coin}_candles_missing'
-        return True,'ok'
-
-    def status(self):
-        healthy,reason=self.readiness();now=time.time()
-        assets={}
-        for coin in PAIRS:
-            ctx=self.mark.get(coin);b=self.book.get(coin)
-            assets[coin]={'mark':ctx['mark'] if ctx else None,
-                          'mark_age_s':round(now-ctx['_ts'],1) if ctx else None,
-                          'book_bid_ask':[b['bid'],b['ask']] if b else None,
-                          'book_age_s':round(now-b['_ts'],1) if b else None,
-                          'closed_candles':{tf:len(self.bars[(coin,tf)]) for tf in TF_MS}}
-        return {'system':'radar-readonly-v1','live_ready':healthy,'reason':reason,
-                'connected':self.connected,'ws_age_s':round(now-self.last_ws_at,1) if self.last_ws_at else None,
-                'history_age_s':round(now-self.last_history_refresh_at,1) if self.last_history_refresh_at else None,
-                'up_seconds':round(now-self.started,1),'reconnects':self.reconnects,
-                'data_errors':self.data_errors,'history_refreshes':self.history_refreshes,
-                'history_error':self.history_error,'assets':assets,
-                'watch_only_candidates':self.events[:5],
-                'disclaimer':'READ ONLY; NO ACCOUNT OR WALLET ACCESS; NO ORDER EXECUTION. Not financial advice.'}
-
-
-async def ping_loop(ws):
-    while True:
-        await asyncio.sleep(25)
-        await ws.send(json.dumps({'method':'ping'}))
-
-
-async def consume_ws(engine):
-    # Uses reconnection backoff from websockets; app does not send orders.
-    async for ws in connect(WS_URL,ping_interval=20,ping_timeout=20,max_queue=64,open_timeout=15):
-        engine.connected=True;engine.connected_since=time.time();engine.reconnects+=1
-        LOG.info('WS connected (#%d)',engine.reconnects)
-        try:
-            for coin in PAIRS:
-                for subscription in [{'type':'bbo','coin':coin},
-                                     {'type':'activeAssetCtx','coin':coin},
-                                     {'type':'candle','coin':coin,'interval':'5m'},
-                                     {'type':'candle','coin':coin,'interval':'15m'}]:
-                    await ws.send(json.dumps({'method':'subscribe','subscription':subscription}))
-            p=asyncio.create_task(ping_loop(ws))
-            try:
-                async for msg in ws:
-                    engine.last_ws_at=time.time()
-                    try:engine.process_message(json.loads(msg))
-                    except (ValueError,TypeError) as ex:
-                        engine.data_errors+=1;LOG.warning('Malformed WS message: %s',ex)
-            finally:
-                p.cancel();await asyncio.gather(p,return_exceptions=True)
-        except Exception as exc:
-            LOG.warning('WS disconnected: %s',exc)
-        finally:
-            engine.connected=False
-
-
-async def history_loop(engine):
-    while True:
-        try:await engine.refresh_history()
-        except Exception as exc:
-            engine.history_error=f'History loop: {type(exc).__name__}: {exc}'
-            engine.data_errors+=1;LOG.exception('History refresh failed')
-        await asyncio.sleep(15*60)
-
-
-async def start_app(app):
-    engine=MarketEngine();engine.open_db();app['engine']=engine
-    app['history_task']=asyncio.create_task(history_loop(engine))
-    app['ws_task']=asyncio.create_task(consume_ws(engine))
-
-
-async def stop_app(app):
-    for name in ('ws_task','history_task'):app[name].cancel()
-    await asyncio.gather(app['ws_task'],app['history_task'],return_exceptions=True)
-    app['engine'].conn.close()
-
-
-async def healthz(request):
-    eng=request.app['engine'];health,reason=eng.readiness()
-    return web.json_response({'ok':health,'reason':reason},status=200 if health else 503)
-
-
-async def status(request):
-    return web.json_response(request.app['engine'].status(),headers={'Cache-Control':'no-store'})
-
-
-def main():
-    logging.basicConfig(level=os.getenv('LOG_LEVEL','INFO'),format='%(asctime)s %(levelname)s %(message)s')
-    app=web.Application();app.router.add_get('/healthz',healthz);app.router.add_get('/status',status)
-    app.on_startup.append(start_app);app.on_cleanup.append(stop_app)
-    web.run_app(app,host='0.0.0.0',port=PORT)
-
-
-if __name__=='__main__':main()
