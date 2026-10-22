@@ -1,0 +1,13 @@
+{
+  "phase": "PROSPECTIVE_RESEARCH_NOT_VALIDATED_TRADING",
+  "immutable_hypotheses_recorded": 0,
+  "evaluations_by_status": {},
+  "closed_proxy_count": 0,
+  "closed_proxy_estimated_pnl_ex_funding_usdc": 0,
+  "closed_proxy_win_rate_pct": null,
+  "verified_fills": 0,
+  "validated_trades": 0,
+  "validated_edge": false,
+  "funding_included": false,
+  "strict_notice": "1m traded-price bars are NOT mark-trigger observations. Intrabar order path and real fills unknown."
+}
