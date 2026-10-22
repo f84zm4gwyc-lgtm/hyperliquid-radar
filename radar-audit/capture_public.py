@@ -67,6 +67,9 @@ def record_status(status, stamp):
             'assets':{c:{'mark':status['assets'][c].get('mark'),
                          'mark_age_s':status['assets'][c].get('mark_age_s'),
                          'book_age_s':status['assets'][c].get('book_age_s'),
+                         # Public bid/ask is needed for prospective quality screening.
+                         # Missing/invalid BBO is explicitly NOT an actionable quote.
+                         'book_bid_ask':status['assets'][c].get('book_bid_ask'),
                          'closed_candles':status['assets'][c].get('closed_candles')}
                       for c in ('BTC','ETH')},
             'completeness':'SAMPLE_ONLY_MISSED_INTERVALS_UNKNOWN',
