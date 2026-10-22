@@ -1,0 +1,15 @@
+{
+  "status": "NOT_CREATED_ACCESS_REFUSED",
+  "title": "Radar BTC/ETH événements",
+  "default_timezone": "Europe/Paris",
+  "schedule": "",
+  "timing_mode": "condition_watch",
+  "triggers": [
+    {"connector_type": "slack", "webhook_name": "message", "params": {
+      "channel_ids": ["C0CB26AMQ3D"], "channel_names": ["radar-btc-eth-alertes"], "include_thread_replies": false
+    }}
+  ],
+  "prompt": "Traite seulement le nouveau message déclencheur. Ignore doublons de signal_id, RAS, WATCH_ONLY et tests ordinaires. Pour un message commençant exactement par RADAR_E2E_TEST, réponds une fois dans ChatGPT : Test événementiel reçu, avec identifiant et heures UTC ; aucun signal de trading. Pour PAPIER — VALIDATED_PAPER_SIGNAL, recontrôle décision de moins de 180 secondes, prix publics actuels, BTC/ETH perps, levier au plus x2, marge au plus 1000 USDC, risque théorique avec coûts au plus 52 USDC, R/R net pondéré au moins 1,8, niveaux cohérents et contexte macro sourcé. Donnée manquante, invérifiable ou périmée : silence, aucune opportunité déclarée. Si tout est confirmé : notification ChatGPT explicitement PAPIER, niveaux, risque, heure, identifiant et demande de captures Hyperliquid 1H/4H avant décision humaine. Aucun ordre ni dépense, aucun message Slack, aucune prétention à une livraison push sans preuve.",
+  "last_observed_error": "Work says @ChatGPT is not in the channel; Slack membership and app permission both verified. Reconnection requested by the service.",
+  "installation_url": "https://chatgpt.com/slack-ai-app-install"
+}

@@ -1,0 +1,3 @@
+freqtrade==2026.9
+ccxt==4.5.89
+websockets==17.3

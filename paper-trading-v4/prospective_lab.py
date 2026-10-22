@@ -99,7 +99,7 @@ def scan(snapshot, now):
                     'max_margin_usdc':1000,'max_risk_usdc':52,'leverage':2,
                     'cost_reserve_fraction':0.005,'entry_deadline_minutes':5,
                     'paper_proxy_only':True,'funding_included':False,
-                    # post-commit evaluator owns alert_received_at_utc, never here!
+                    # Absolute validity starts at observation, never at commit/evaluation.
                     'alert_received_at_utc':fmt(reported),
                 }
                 if position(draft)['accepted']:
@@ -156,6 +156,10 @@ def evaluate(plan, commit_at_utc, candles, *, evaluated_at_utc):
              'paper_signal_only':True,'pnl_eligible':False,'source':'OHLCV_1M_TRADE_PRICE_NOT_MARK',
              'original_plan_sha256':plan_hash(plan),
              'live_order_created':False,'funding_included':False}
+    deadline=iso(plan['alert_received_at_utc'])+timedelta(minutes=float(plan.get('entry_deadline_minutes',5)))
+    outcome['original_entry_deadline_utc']=fmt(deadline)
+    if eligible>deadline:
+        outcome.update(status='OHLCV_PROXY_NO_ENTRY',reason='Original entry deadline expired before eligible data');return outcome
     if end<=eligible:
         outcome.update(status='WAIT_MORE_DATA',reason='No fully closed postcommit candles');return outcome
     if (end-eligible).total_seconds()/60>MAX_ARCHIVE_WINDOW_MIN:
@@ -164,7 +168,7 @@ def evaluate(plan, commit_at_utc, candles, *, evaluated_at_utc):
     if status!='CONTIGUOUS_1M_TRADE_PRICE_PROXY':
         outcome.update(status='WAIT_MORE_DATA' if status=='WAIT_FOR_FULL_MINUTE' else 'UNVERIFIABLE',reason=status);return outcome
     # Only a post-commit next-minute candle is usable for entry.
-    sim_plan=dict(plan,alert_received_at_utc=fmt(eligible))
+    sim_plan=dict(plan)  # Bars are already filtered post-commit; never restart validity.
     sim=simulate(sim_plan,[{'start_utc':iso(r['start_utc']),
                            'open':d(r['open']),'high':d(r['high']),
                            'low':d(r['low']),'close':d(r['close'])} for r in bars])
@@ -225,6 +229,10 @@ def commit_time(path):
     path=Path(path)
     if not path.is_file():raise FileNotFoundError(path)
     try:
+        shallow=subprocess.run(['git','rev-parse','--is-shallow-repository'],
+            capture_output=True,text=True,timeout=7,check=True)
+        if shallow.stdout.strip()!='false':
+            raise ValueError('Full git history required for plan creation evidence')
         original=subprocess.run(['git','log','--diff-filter=A','--format=%H %cI','--',str(path)],
             capture_output=True,text=True,timeout=7,check=True)
     except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as exc:

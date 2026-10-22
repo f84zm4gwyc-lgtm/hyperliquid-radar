@@ -89,6 +89,18 @@ class ForwardTesting(unittest.TestCase):
         self.assertEqual(outcome['status'],'OHLCV_PROXY_OPEN_UNREALIZED')
         self.assertFalse(outcome['pnl_eligible'])
         self.assertEqual(outcome['sim_events'][0]['event'],'ENTRY')
+    def test_commit_cannot_restart_expired_original_validity(self):
+        late_commit=T+timedelta(minutes=30)
+        first=lab.eligibility_time(self.plan,late_commit)
+        out=lab.evaluate(self.plan,stamp(late_commit),bars(first,3),
+                         evaluated_at_utc=stamp(first+timedelta(minutes=3)))
+        self.assertEqual(out['status'],'OHLCV_PROXY_NO_ENTRY')
+        self.assertEqual(out['original_entry_deadline_utc'],stamp(T+timedelta(minutes=5)))
+        self.assertNotIn('sim_events',out)
+    def test_postcommit_buffer_cannot_extend_nearly_expired_plan(self):
+        committed=T+timedelta(minutes=4,seconds=10)
+        out=lab.evaluate(self.plan,stamp(committed),[],evaluated_at_utc=stamp(T+timedelta(minutes=8)))
+        self.assertEqual(out['status'],'OHLCV_PROXY_NO_ENTRY')
     def test_gap_before_tp_must_fail_closed(self):
         rows=bars(self.first,4)
         rows.pop(2)
@@ -177,6 +189,28 @@ class StatisticalHonesty(unittest.TestCase):
             self.assertFalse(s['validated_edge'])
 
 class GitEvidenceIntegration(unittest.TestCase):
+    def test_shallow_clone_cannot_claim_latest_snapshot_as_plan_creation(self):
+        import os, subprocess, tempfile, json
+        previous=Path.cwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            origin=Path(tmp)/'origin';origin.mkdir()
+            try:
+                os.chdir(origin)
+                for args in (['init','-q'], ['config','user.name','OfflineAuditBot'],
+                             ['config','user.email','offline@example.org']):
+                    subprocess.run(['git',*args],check=True)
+                p=Path('plan.json');p.write_text(json.dumps(lab.scan(snapshot(),T)[0]))
+                subprocess.run(['git','add','plan.json'],check=True)
+                subprocess.run(['git','commit','-qm','Original plan'],check=True)
+                Path('unrelated.txt').write_text('A later snapshot')
+                subprocess.run(['git','add','unrelated.txt'],check=True)
+                subprocess.run(['git','commit','-qm','Unrelated later snapshot'],check=True)
+                clone=Path(tmp)/'shallow'
+                subprocess.run(['git','clone','-q','--depth=1',origin.as_uri(),str(clone)],check=True)
+                os.chdir(clone)
+                with self.assertRaisesRegex(ValueError,'Full git history'):
+                    lab.commit_time(Path('plan.json'))
+            finally:os.chdir(previous)
     def test_git_committed_plan_precedes_first_eligible_minute(self):
         """REAL git commit; future candles are synthetic, never a live paper trade."""
         import os
