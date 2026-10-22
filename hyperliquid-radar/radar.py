@@ -4,6 +4,7 @@
 Outputs technical data for human review. Never interprets a candidate as an order.
 """
 import json
+import gzip
 import math
 import os
 from datetime import datetime, timezone
@@ -300,6 +301,7 @@ def main():
           'quality':{'validation':'All required price/context/candle/book requests must pass; no trades executed.'}}
     charts_enabled=os.getenv('CHARTS_ENABLED','0').lower() in ('1','true','yes')
     chart_sets=[]
+    candle_bootstrap={coin:{} for coin in PAIRS}
     for coin in PAIRS:
         if coin not in universe:raise RuntimeError(f'{coin} missing from Hyperliquid universe')
         index,meta=universe[coin]
@@ -325,6 +327,9 @@ def main():
         for tf in TF_MS:
             bars=retrieve_bars(coin,tf,int(time()*1000))
             metrics,indicators=calculate(coin,tf,bars)
+            if tf in ('15m','1h','4h'):
+                # Same already-fetched data: NO EXTRA REST requests.
+                candle_bootstrap[coin][tf]=[dict(bar,s=coin,i=tf) for bar in bars[-270:]]
             asset['timeframes'][tf]=metrics
             if charts_enabled and tf in CHART_TFS:
                 chart_sets.append((coin,tf,bars,indicators))
@@ -338,6 +343,20 @@ def main():
     snap['quality']['price_sample_age_seconds_at_publish']=rounded((finished-started)/1000,1)
     if finished-started>180_000:
         raise RuntimeError('Snapshot collection too slow for reliable alerts (>3 min)')
+    # Public gzip fallback for cold-start Render Free. Complete candle snapshot
+    # from this successful collection, NOT a live execution or guaranteed feed.
+    bootstrap={'schema_version':1,'generated_at_utc':utc(finished),
+               'source':'HYPERLIQUID_OFFICIAL_INFO_CLOSED_CANDLES',
+               'assets':candle_bootstrap,'pnl_eligible':False}
+    if not all(len(candle_bootstrap[c][tf])>=230 for c in PAIRS for tf in ('15m','1h','4h')):
+        raise RuntimeError('Insufficient GitHub bootstrap history')
+    compressed=gzip.compress(json.dumps(bootstrap,separators=(',',':'),allow_nan=False).encode('utf-8'),
+                             compresslevel=7,mtime=0)
+    if len(compressed)>500_000:
+        raise RuntimeError('Bootstrap artifact unexpectedly large')
+    boot_path=OUT/'candle_bootstrap.json.gz'
+    boot_temp=OUT/'candle_bootstrap.json.gz.tmp'
+    boot_temp.write_bytes(compressed);os.replace(boot_temp,boot_path)
     # Atomic files: preserve previous valid JSON in case of API or processing failures.
     tmp=latest.with_suffix('.json.tmp')
     tmp.write_text(json.dumps(snap,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')

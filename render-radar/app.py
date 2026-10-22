@@ -23,6 +23,7 @@ from aiohttp import web
 from websockets.asyncio.client import connect
 
 from engine import PAIRS, TF_MS, check_bar, candidate, aligned_bars
+from bootstrap import get_public_bars, BootstrapError
 
 LOG=logging.getLogger('radar.ws')
 WS_URL='wss://api.hyperliquid.xyz/ws'
@@ -63,6 +64,14 @@ def read_rest_with_backoff(request, *, max_attempts=5):
             sleep(delay)
 
 def get_bars(coin,tf):
+    # Prefer once-collected GitHub candle cache. This prevents repeated REST
+    # 429s on shared-IP free hosts; reject stale/invalid cache fail-closed.
+    try:
+        bars=get_public_bars(coin,tf)
+        LOG.info('Historical %s %s loaded from validated PUBLIC GitHub cache',coin,tf)
+        return bars
+    except BootstrapError as exc:
+        LOG.warning('Public candle cache unavailable for %s %s: %s; REST fallback',coin,tf,exc)
     period=TF_MS[tf];now_ms=int(time.time()*1000)
     payload=json.dumps({'type':'candleSnapshot','req':{'coin':coin,'interval':tf,
       'startTime':now_ms-(HISTORY_LENGTH+2)*period,'endTime':now_ms}}).encode()
@@ -277,7 +286,9 @@ async def consume_ws(engine):
                 for subscription in [{'type':'bbo','coin':coin},
                                      {'type':'activeAssetCtx','coin':coin},
                                      {'type':'candle','coin':coin,'interval':'5m'},
-                                     {'type':'candle','coin':coin,'interval':'15m'}]:
+                                     {'type':'candle','coin':coin,'interval':'15m'},
+                                     {'type':'candle','coin':coin,'interval':'1h'},
+                                     {'type':'candle','coin':coin,'interval':'4h'}]:
                     await ws.send(json.dumps({'method':'subscribe','subscription':subscription}))
             p=asyncio.create_task(ping_loop(ws))
             try:
