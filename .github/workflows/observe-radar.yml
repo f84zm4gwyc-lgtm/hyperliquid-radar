@@ -28,6 +28,10 @@ jobs:
         run: |
           python paper-trading-v4/import_watch_only.py
           python paper-trading-v4/journal.py verify --journal paper-trading-v4/data/watch_only_journal.jsonl || test ! -e paper-trading-v4/data/watch_only_journal.jsonl
+      - name: Review prospective candidate/quote quality (WATCH_ONLY, no paper PnL)
+        run: |
+          python -m unittest discover -s paper-trading-v4/tests -p 'test_preflight_candidates.py' -q
+          python paper-trading-v4/preflight_candidates.py
       - name: Summarize observation gaps (never claim continuous uptime)
         run: python radar-audit/report.py
       - name: Commit observation to public repository (unverified samples)
