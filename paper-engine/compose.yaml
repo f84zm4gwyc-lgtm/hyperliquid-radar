@@ -1,0 +1,13 @@
+services:
+  radar-paper:
+    build: .
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 45s
+    environment:
+      RADAR_DATA_DIR: /radar/data
+      RADAR_SLACK_WEBHOOK: ${RADAR_SLACK_WEBHOOK:-}
+    volumes:
+      - radar_data:/radar/data
+volumes:
+  radar_data:

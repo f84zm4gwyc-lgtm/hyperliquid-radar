@@ -147,7 +147,7 @@ class MarketEngine:
                   and book['ask']>book['bid']>0
                   and 10000*(book['ask']-book['bid'])/((book['ask']+book['bid'])/2)
                       <=BOOK_MAX_SPREAD_BPS)
-        if (not quote_ok or not 0<=now_ms-cut<=SIGNAL_MAX_AGE_S):
+        if (not quote_ok or not 0<=(now_ms-cut)/1000<=SIGNAL_MAX_AGE_S):
             self.candidate_suppressed+=1
             return
         h1=aligned_bars(sorted(self.bars[(coin,'1h')].values(),key=lambda x:x['t']),cut)
