@@ -8,6 +8,7 @@ No broker keys / no private endpoints / no order execution / no monetary advice.
 import asyncio
 import json
 import logging
+import math
 import os
 import sqlite3
 import time
@@ -132,6 +133,8 @@ class MarketEngine:
         book=self.book.get(coin);mark=self.mark.get(coin)
         quote_ok=(book and mark and 0<=now-book['_ts']<=QUOTE_MAX_AGE_S
                   and 0<=now-mark['_ts']<=QUOTE_MAX_AGE_S
+                  and math.isfinite(book['ask']) and math.isfinite(book['bid'])
+                  and math.isfinite(mark['mark']) and mark['mark']>0
                   and book['ask']>book['bid']>0
                   and 10000*(book['ask']-book['bid'])/((book['ask']+book['bid'])/2)
                       <=BOOK_MAX_SPREAD_BPS)
@@ -172,6 +175,7 @@ class MarketEngine:
             if coin not in PAIRS or not isinstance(bidask,list) or len(bidask)!=2 or not all(bidask):return
             try:
                 b,a=float(bidask[0]['px']),float(bidask[1]['px']);ts=int(data['time'])
+                if not (math.isfinite(b) and math.isfinite(a)):return
                 if b<=0 or a<=b or abs(now_ms-ts)>30_000:return
                 self.book[coin]={'bid':b,'ask':a,'observed_at':utc_seconds(ts/1000),'_ts':time.time()}
             except (ValueError,TypeError,KeyError):self.data_errors+=1
@@ -180,9 +184,12 @@ class MarketEngine:
             if coin not in PAIRS or not isinstance(ctx,dict):return
             try:
                 mark=float(ctx['markPx'])
-                if mark<=0:return
-                self.mark[coin]={'mark':mark,'open_interest':float(ctx.get('openInterest',0)),
-                                 'funding_rate':float(ctx.get('funding',0)),
+                oi=float(ctx.get('openInterest',0))
+                funding=float(ctx.get('funding',0))
+                if not all(math.isfinite(x) for x in (mark,oi,funding)):return
+                if mark<=0 or oi<0:return
+                self.mark[coin]={'mark':mark,'open_interest':oi,
+                                 'funding_rate':funding,
                                  'observed_at':utc_seconds(time.time()),'_ts':time.time()}
             except (KeyError,ValueError,TypeError):self.data_errors+=1
         elif channel=='candle':
@@ -204,10 +211,12 @@ class MarketEngine:
             mark=self.mark.get(coin);book=self.book.get(coin)
             if not mark or not 0<=now-mark['_ts']<=QUOTE_MAX_AGE_S:
                 return False,f'{coin}_mark_stale'
+            if not math.isfinite(mark['mark']) or mark['mark']<=0:
+                return False,f'{coin}_mark_invalid'
             if not book or not 0<=now-book['_ts']<=QUOTE_MAX_AGE_S:
                 return False,f'{coin}_book_stale'
             bid,ask=book['bid'],book['ask']
-            if bid<=0 or ask<=bid or 10000*(ask-bid)/((ask+bid)/2)>BOOK_MAX_SPREAD_BPS:
+            if not (math.isfinite(bid) and math.isfinite(ask)) or bid<=0 or ask<=bid or 10000*(ask-bid)/((ask+bid)/2)>BOOK_MAX_SPREAD_BPS:
                 return False,f'{coin}_book_invalid'
             for tf in HISTORY_TFS:
                 bars=self.bars[(coin,tf)]
@@ -217,6 +226,14 @@ class MarketEngine:
                 last_end=max(v['T']+1 for v in completed)
                 if not 0<=now_ms-last_end<=TF_MS[tf]+90_000:
                     return False,f'{coin}_{tf}_candle_stale'
+                # A recent closing price alone does not prove a continuous
+                # history. Reject missing intervals before verifying signals.
+                recent=sorted(completed,key=lambda b:b['t'])[-21:]
+                if len(recent)<21 or any(
+                    recent[i]['t']-recent[i-1]['t']!=TF_MS[tf]
+                    for i in range(1,len(recent))
+                ):
+                    return False,f'{coin}_{tf}_candles_gap'
         return True,'ok'
 
     def status(self):
@@ -224,9 +241,11 @@ class MarketEngine:
         assets={}
         for coin in PAIRS:
             ctx=self.mark.get(coin);b=self.book.get(coin)
-            assets[coin]={'mark':ctx['mark'] if ctx else None,
+            valid_mark=bool(ctx and math.isfinite(ctx['mark']))
+            valid_book=bool(b and all(math.isfinite(b[k]) for k in ('bid','ask')))
+            assets[coin]={'mark':ctx['mark'] if valid_mark else None,
                           'mark_age_s':round(now-ctx['_ts'],1) if ctx else None,
-                          'book_bid_ask':[b['bid'],b['ask']] if b else None,
+                          'book_bid_ask':[b['bid'],b['ask']] if valid_book else None,
                           'book_age_s':round(now-b['_ts'],1) if b else None,
                           'closed_candles':{tf:len(self.bars[(coin,tf)]) for tf in TF_MS}}
         return {'system':'radar-readonly-v1','live_ready':healthy,'reason':reason,
