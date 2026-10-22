@@ -1,0 +1,61 @@
+{
+  "trade_id": "DEMO-SYNTHETIQUE-001",
+  "plan_sha256": "272aaf4d3cff94f05ed1818192b0e2cac37295961ad144ff15b93ee66d93bf97",
+  "status": "CLOSED_ESTIMATE",
+  "events": [
+    {
+      "event": "ENTRY_ESTIMATE",
+      "at_utc": "2026-10-20T10:00:06+00:00",
+      "estimated_fill": 81042.0,
+      "quantity": 0.02467,
+      "quote_delay_s": 0.0
+    },
+    {
+      "event": "TP1_ESTIMATE",
+      "at_utc": "2026-10-20T10:00:10+00:00",
+      "estimated_fill": 83107.4255,
+      "quantity": 0.01233,
+      "trigger_mark": 83150.0
+    },
+    {
+      "event": "TP2_ESTIMATE",
+      "at_utc": "2026-10-20T10:00:16+00:00",
+      "estimated_fill": 86105.9255,
+      "quantity": 0.01234,
+      "trigger_mark": 86150.0
+    }
+  ],
+  "position": {
+    "accepted": true,
+    "ready_for_real_trade": false,
+    "entry": 81042.0,
+    "stop": 80000.0,
+    "tp1": 83000.0,
+    "tp2": 86000.0,
+    "nominal_usdc": 1999.31,
+    "quantity": 0.02467,
+    "tp1_quantity": 0.01233,
+    "tp2_quantity": 0.01234,
+    "tp1_share_real": 0.49979732468585325,
+    "margin_usdc": 999.65,
+    "leverage": 2.0,
+    "estimated_max_stop_loss_usdc": 35.7,
+    "tp1_gain_est_usdc": 19.15,
+    "tp2_gain_est_usdc": 56.18,
+    "weighted_total_gain_est_usdc": 75.33,
+    "weighted_rr_net_est": 2.11,
+    "cost_reserve_fraction": 0.005
+  },
+  "estimated_realised_pnl_ex_funding_usdc": 86.12,
+  "funding_included": false,
+  "hypothetical_fills_only": true,
+  "data_provenance": "SYNTHETIC_EXAMPLE",
+  "incomplete_market_data": false,
+  "alert_latency_seconds": 5.0,
+  "caveats": [
+    "Mark triggers are estimated; BBO + slippage is not an execution receipt",
+    "Fees assumed; funding not included; stop execution not guaranteed",
+    "Missing ticks between quotes can hide path and worsen actual execution",
+    "WATCH_ONLY candidates are NOT paper trades, no real orders"
+  ]
+}

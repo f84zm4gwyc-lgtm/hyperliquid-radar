@@ -1,0 +1,14 @@
+{
+  "trade_id": "V4-DEMO-100-PERCENT-FICTIVE",
+  "symbol": "BTC",
+  "side": "LONG",
+  "signal_status": "VALIDATED_PAPER_SIGNAL",
+  "alert_sent_at_utc": "2026-10-20T11:59:50Z",
+  "alert_received_at_utc": "2026-10-20T11:59:51Z",
+  "indicative_entry": 80000,
+  "stop": 79500,
+  "tp1": 81500,
+  "tp2": 83500,
+  "sz_decimals": 5,
+  "entry_deadline_minutes": 5
+}

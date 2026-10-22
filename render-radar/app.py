@@ -31,6 +31,9 @@ DB_PATH=Path(os.getenv('RADAR_DB_PATH','/tmp/radar_ws.sqlite3'))
 HISTORY_LENGTH=270
 # Prioritize the 15m setup and 1h/4h context; 5m arrives via WebSocket.
 HISTORY_TFS=('15m','1h','4h')
+SIGNAL_MAX_AGE_S=180
+QUOTE_MAX_AGE_S=120
+BOOK_MAX_SPREAD_BPS=30
 # Does NOT promise instant execution and does not send trading notifications.
 
 
@@ -83,6 +86,7 @@ class MarketEngine:
         self.bars=defaultdict(dict);self.book={};self.mark={};self.events=[]
         self.conn=None;self.started=time.time();self.reconnects=0
         self.data_errors=0;self.history_refreshes=0
+        self.candidate_checks=0;self.candidate_suppressed=0;self.last_candidate_check_at=None
 
     def open_db(self):
         DB_PATH.parent.mkdir(parents=True,exist_ok=True)
@@ -121,8 +125,24 @@ class MarketEngine:
         if any(recent[i]['t']-recent[i-1]['t']!=TF_MS['15m'] for i in range(1,len(recent))):
             return  # gap on reconnect: never infer a breakout from missing bars
         cut=closed[-1]['T']+1
+        self.candidate_checks+=1;self.last_candidate_check_at=time.time()
+        # A historical breakout is not an actionable live event. Require a
+        # fresh mark, BBO and 15m close, but keep WATCH_ONLY semantics.
+        now=time.time()
+        book=self.book.get(coin);mark=self.mark.get(coin)
+        quote_ok=(book and mark and 0<=now-book['_ts']<=QUOTE_MAX_AGE_S
+                  and 0<=now-mark['_ts']<=QUOTE_MAX_AGE_S
+                  and book['ask']>book['bid']>0
+                  and 10000*(book['ask']-book['bid'])/((book['ask']+book['bid'])/2)
+                      <=BOOK_MAX_SPREAD_BPS)
+        if (not quote_ok or not 0<=now_ms-cut<=SIGNAL_MAX_AGE_S):
+            self.candidate_suppressed+=1
+            return
         h1=aligned_bars(sorted(self.bars[(coin,'1h')].values(),key=lambda x:x['t']),cut)
         h4=aligned_bars(sorted(self.bars[(coin,'4h')].values(),key=lambda x:x['t']),cut)
+        if not h1 or not h4 or cut-(h1[-1]['T']+1)>TF_MS['1h']+90_000 or cut-(h4[-1]['T']+1)>TF_MS['4h']+90_000:
+            self.candidate_suppressed+=1
+            return
         result=candidate(coin,closed,h1,h4)
         if result:self._persist_candidate(result)
 
@@ -178,10 +198,25 @@ class MarketEngine:
         if not self.last_ws_at or time.time()-self.last_ws_at>65:return False,'ws_no_recent_messages'
         if not self.last_history_refresh_at or time.time()-self.last_history_refresh_at>1200:return False,'history_stale'
         if self.history_error:return False,'history_error'
-        # BBO may be silent when prices do not change: do not manufacture freshness.
+        # BBO messages may be silent when prices do not change. Fail closed.
+        now=time.time();now_ms=int(now*1000)
         for coin in PAIRS:
-            if coin not in self.mark or time.time()-self.mark[coin]['_ts']>120:return False,f'{coin}_mark_stale'
-            if len(self.bars[(coin,'15m')])<230:return False,f'{coin}_candles_missing'
+            mark=self.mark.get(coin);book=self.book.get(coin)
+            if not mark or not 0<=now-mark['_ts']<=QUOTE_MAX_AGE_S:
+                return False,f'{coin}_mark_stale'
+            if not book or not 0<=now-book['_ts']<=QUOTE_MAX_AGE_S:
+                return False,f'{coin}_book_stale'
+            bid,ask=book['bid'],book['ask']
+            if bid<=0 or ask<=bid or 10000*(ask-bid)/((ask+bid)/2)>BOOK_MAX_SPREAD_BPS:
+                return False,f'{coin}_book_invalid'
+            for tf in HISTORY_TFS:
+                bars=self.bars[(coin,tf)]
+                if len(bars)<230:return False,f'{coin}_{tf}_candles_missing'
+                completed=[v for v in bars.values() if v['T']+1<=now_ms]
+                if not completed:return False,f'{coin}_{tf}_closed_candles_missing'
+                last_end=max(v['T']+1 for v in completed)
+                if not 0<=now_ms-last_end<=TF_MS[tf]+90_000:
+                    return False,f'{coin}_{tf}_candle_stale'
         return True,'ok'
 
     def status(self):
@@ -199,8 +234,11 @@ class MarketEngine:
                 'history_age_s':round(now-self.last_history_refresh_at,1) if self.last_history_refresh_at else None,
                 'up_seconds':round(now-self.started,1),'reconnects':self.reconnects,
                 'data_errors':self.data_errors,'history_refreshes':self.history_refreshes,
+                'candidate_checks':self.candidate_checks,'candidate_suppressed':self.candidate_suppressed,
+                'last_candidate_check_utc':utc_seconds(self.last_candidate_check_at) if self.last_candidate_check_at else None,
                 'history_error':self.history_error,'assets':assets,
                 'watch_only_candidates':self.events[:5],
+                'integrity_policy':'WATCH_ONLY, no entry/stop/TP; book+mark+HTF age checks in live readiness',
                 'disclaimer':'READ ONLY; NO ACCOUNT OR WALLET ACCESS; NO ORDER EXECUTION. Not financial advice.'}
 
 
@@ -267,9 +305,20 @@ async def status(request):
     return web.json_response(request.app['engine'].status(),headers={'Cache-Control':'no-store'})
 
 
+async def watch_only_events(request):
+    eng=request.app['engine']
+    # SQLite is ephemeral on Render Free. This endpoint is an observation aid,
+    # NOT a durable archive or a validated signal feed.
+    data=[json.loads(x[0]) for x in eng.conn.execute(
+        'SELECT payload FROM candidates ORDER BY recorded_at DESC LIMIT 100').fetchall()]
+    return web.json_response({'events':data,'count':len(data),'storage':'EPHEMERAL_RENDER_FREE',
+          'type':'WATCH_ONLY','reliable_complete_history':False,'orders_enabled':False},
+          headers={'Cache-Control':'no-store'})
+
+
 def main():
     logging.basicConfig(level=os.getenv('LOG_LEVEL','INFO'),format='%(asctime)s %(levelname)s %(message)s')
-    app=web.Application();app.router.add_get('/healthz',healthz);app.router.add_get('/status',status)
+    app=web.Application();app.router.add_get('/healthz',healthz);app.router.add_get('/status',status);app.router.add_get('/watch-only',watch_only_events)
     app.on_startup.append(start_app);app.on_cleanup.append(stop_app)
     web.run_app(app,host='0.0.0.0',port=PORT)
 

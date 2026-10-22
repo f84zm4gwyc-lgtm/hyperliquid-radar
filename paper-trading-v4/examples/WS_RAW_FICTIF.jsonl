@@ -1,0 +1,6 @@
+{"raw_feed_provenance":"SYNTHETIC_EXAMPLE","captured_at_utc":"2026-10-20T12:00:00Z","ws":{"channel":"bbo","data":{"coin":"BTC","time":1792497600000,"bbo":[{"px":"79999","sz":"1","n":1},{"px":"80001","sz":"1","n":1}]}}}
+{"raw_feed_provenance":"SYNTHETIC_EXAMPLE","captured_at_utc":"2026-10-20T12:00:01Z","ws":{"channel":"activeAssetCtx","data":{"coin":"BTC","ctx":{"markPx":"80000"}}}}
+{"raw_feed_provenance":"SYNTHETIC_EXAMPLE","captured_at_utc":"2026-10-20T12:00:10Z","ws":{"channel":"bbo","data":{"coin":"BTC","time":1792497610000,"bbo":[{"px":"81999","sz":"1","n":1},{"px":"82001","sz":"1","n":1}]}}}
+{"raw_feed_provenance":"SYNTHETIC_EXAMPLE","captured_at_utc":"2026-10-20T12:00:11Z","ws":{"channel":"activeAssetCtx","data":{"coin":"BTC","ctx":{"markPx":"82000"}}}}
+{"raw_feed_provenance":"SYNTHETIC_EXAMPLE","captured_at_utc":"2026-10-20T12:00:20Z","ws":{"channel":"bbo","data":{"coin":"BTC","time":1792497620000,"bbo":[{"px":"84099","sz":"1","n":1},{"px":"84101","sz":"1","n":1}]}}}
+{"raw_feed_provenance":"SYNTHETIC_EXAMPLE","captured_at_utc":"2026-10-20T12:00:21Z","ws":{"channel":"activeAssetCtx","data":{"coin":"BTC","ctx":{"markPx":"84100"}}}}
