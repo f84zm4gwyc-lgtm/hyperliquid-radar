@@ -36,8 +36,16 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add hyperliquid-radar/docs/latest.json hyperliquid-radar/docs/report.md hyperliquid-radar/docs/*.png
+          git add hyperliquid-radar/docs/latest.json hyperliquid-radar/docs/report.md hyperliquid-radar/docs/*.png hyperliquid-radar/docs/candle_bootstrap.json.gz
           if ! git diff --cached --quiet; then
             git commit -m 'Update BTC ETH technical snapshot v2'
-            git push
+            # Observer workflow also writes main: tolerate concurrent append commits.
+            for i in 1 2 3 4 5; do
+              if git push origin HEAD:main; then exit 0; fi
+              git fetch origin main
+              git rebase origin/main
+              sleep 3
+            done
+            echo 'V2 push failed: collection not published' >&2
+            exit 1
           fi
