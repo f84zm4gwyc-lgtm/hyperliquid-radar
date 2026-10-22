@@ -1,0 +1,26 @@
+name: Validate paper engine and safety regressions
+on:
+  pull_request:
+    paths: ['paper-engine/**', 'render-radar/**', 'paper-trading-v4/**', '.github/workflows/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: paper-engine/requirements.lock
+      - run: pip install -r paper-engine/requirements.lock -r render-radar/requirements.txt
+      - run: python -m unittest discover -s paper-engine/tests -v
+      - run: python -m unittest discover -s render-radar/tests -v
+      - run: python -m unittest discover -s paper-trading-v4/tests -v
+      - run: python -m unittest discover -s hyperliquid-radar/tests -v
+      - run: python -m unittest discover -s radar-audit -v
