@@ -1,5 +1,11 @@
 name: Actualiser radar Hyperliquid BTC ETH v2
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'paper-trading-v4/prospective_lab.py'
+      - 'paper-trading-v4/tests/test_prospective_lab.py'
+      - '.github/workflows/update-radar.yml'
   schedule:
     # Toutes les 5 min (maximum autorisé pour GitHub Actions), en évitant :00.
     - cron: '1 * * * *'
@@ -27,16 +33,31 @@ jobs:
         run: python -m pip install -r hyperliquid-radar/requirements.txt
       - name: Validate risk and technical calculations
         run: python -m unittest discover -s hyperliquid-radar/tests -v
+      - name: Research-only prospective paper lab regression tests
+        run: python -m unittest discover -s paper-trading-v4/tests -p 'test_prospective_lab.py' -q
+      - name: Evaluate ALREADY COMMITTED paper hypotheses on later 1m candles (proxy only)
+        run: |
+          python paper-trading-v4/prospective_lab.py evaluate-all \
+            --plans-dir paper-trading-v4/data/plans \
+            --results-dir paper-trading-v4/data/results
       - name: Collect BTC ETH 5m/15m/1h/4h/1d + L2 book
         env:
           # Graphiques recalculés seulement à :01, pas à chaque snapshot 5 min.
           CHARTS_ENABLED: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '1 * * * *' }}
         run: python hyperliquid-radar/radar.py
+      - name: Record strictly prospective PAPER hypotheses from this fresh collection
+        run: |
+          python paper-trading-v4/prospective_lab.py scan \
+            --snapshot hyperliquid-radar/docs/latest.json \
+            --output-dir paper-trading-v4/data/plans \
+            --results-dir paper-trading-v4/data/results \
+            --audit-file paper-trading-v4/data/scan_audit.jsonl
       - name: Publish validated public reports
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add hyperliquid-radar/docs/latest.json hyperliquid-radar/docs/report.md hyperliquid-radar/docs/*.png hyperliquid-radar/docs/candle_bootstrap.json.gz
+          if [ -d paper-trading-v4/data ]; then git add paper-trading-v4/data/; fi
           if ! git diff --cached --quiet; then
             git commit -m 'Update BTC ETH technical snapshot v2'
             # Observer workflow also writes main: tolerate concurrent append commits.
