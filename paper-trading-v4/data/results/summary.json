@@ -1,7 +1,9 @@
 {
   "phase": "PROSPECTIVE_RESEARCH_NOT_VALIDATED_TRADING",
-  "immutable_hypotheses_recorded": 0,
-  "evaluations_by_status": {},
+  "immutable_hypotheses_recorded": 1,
+  "evaluations_by_status": {
+    "UNVERIFIABLE": 1
+  },
   "closed_proxy_count": 0,
   "closed_proxy_estimated_pnl_ex_funding_usdc": 0,
   "closed_proxy_win_rate_pct": null,
