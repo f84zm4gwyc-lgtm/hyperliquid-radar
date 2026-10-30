@@ -1,19 +1,19 @@
 {
   "schema_version": 2,
-  "updated_at_utc": "2026-10-30T17:30:07.306000+00:00",
+  "updated_at_utc": "2026-10-30T17:33:59.497000+00:00",
   "source": "Hyperliquid official info API — perpetual BTC/ETH, NOT spot",
-  "collection_started_at_utc": "2026-10-30T17:30:04.034000+00:00",
+  "collection_started_at_utc": "2026-10-30T17:33:51.158000+00:00",
   "assets": {
     "BTC": {
       "perp_context": {
-        "mark_price_usdc": 77311.0,
-        "mid_price_usdc": 77314.5,
-        "price_observed_at_utc": "2026-10-30T17:30:04.034000+00:00",
+        "mark_price_usdc": 77191.0,
+        "mid_price_usdc": 77191.5,
+        "price_observed_at_utc": "2026-10-30T17:33:51.158000+00:00",
         "funding_hourly_pct": 0.00125,
-        "open_interest_base": 41102.86496,
-        "open_interest_usdc_approx": 3177703592.92,
-        "oi_change_pct_since_previous_snapshot": 1.0654,
-        "day_notional_volume_usdc": 6679312928.38,
+        "open_interest_base": 41081.6886,
+        "open_interest_usdc_approx": 3171136624.72,
+        "oi_change_pct_since_previous_snapshot": -0.0515,
+        "day_notional_volume_usdc": 6692694273.34,
         "size_decimals": 5
       },
       "timeframes": {
@@ -174,27 +174,27 @@
         }
       },
       "order_book": {
-        "observed_at_utc": "2026-10-30T17:30:05.134000+00:00",
+        "observed_at_utc": "2026-10-30T17:33:52.724000+00:00",
         "age_seconds_at_collection": 0.4,
-        "best_bid": 77314.0,
-        "best_ask": 77315.0,
-        "mid_price": 77314.5,
+        "best_bid": 77191.0,
+        "best_ask": 77192.0,
+        "mid_price": 77191.5,
         "spread_bps": 0.13,
-        "bid_depth_top5_usdc": 2614245.3,
-        "ask_depth_top5_usdc": 118255.63,
-        "depth_imbalance_top5": 0.9134
+        "bid_depth_top5_usdc": 549882.43,
+        "ask_depth_top5_usdc": 756942.3,
+        "depth_imbalance_top5": -0.1584
       }
     },
     "ETH": {
       "perp_context": {
-        "mark_price_usdc": 2243.6,
-        "mid_price_usdc": 2243.65,
-        "price_observed_at_utc": "2026-10-30T17:30:04.034000+00:00",
-        "funding_hourly_pct": -0.0002509,
-        "open_interest_base": 992881.6775999999,
-        "open_interest_usdc_approx": 2227629331.86,
-        "oi_change_pct_since_previous_snapshot": 0.1407,
-        "day_notional_volume_usdc": 3218760504.42,
+        "mark_price_usdc": 2238.3,
+        "mid_price_usdc": 2238.25,
+        "price_observed_at_utc": "2026-10-30T17:33:51.158000+00:00",
+        "funding_hourly_pct": -0.0002926,
+        "open_interest_base": 993380.1868000003,
+        "open_interest_usdc_approx": 2223482872.11,
+        "oi_change_pct_since_previous_snapshot": 0.0502,
+        "day_notional_volume_usdc": 3220906184.97,
         "size_decimals": 4
       },
       "timeframes": {
@@ -355,21 +355,21 @@
         }
       },
       "order_book": {
-        "observed_at_utc": "2026-10-30T17:30:06.728000+00:00",
+        "observed_at_utc": "2026-10-30T17:33:54.881000+00:00",
         "age_seconds_at_collection": 0.2,
-        "best_bid": 2243.6,
-        "best_ask": 2243.7,
-        "mid_price": 2243.65,
+        "best_bid": 2238.8,
+        "best_ask": 2238.9,
+        "mid_price": 2238.85,
         "spread_bps": 0.45,
-        "bid_depth_top5_usdc": 2160259.94,
-        "ask_depth_top5_usdc": 269108.19,
-        "depth_imbalance_top5": 0.7785
+        "bid_depth_top5_usdc": 1291887.67,
+        "ask_depth_top5_usdc": 376265.41,
+        "depth_imbalance_top5": 0.5489
       }
     }
   },
   "quality": {
     "validation": "All required price/context/candle/book requests must pass; no trades executed.",
-    "price_sample_age_seconds_at_publish": 3.3
+    "price_sample_age_seconds_at_publish": 8.3
   },
-  "collection_duration_seconds": 3.3
+  "collection_duration_seconds": 8.3
 }
