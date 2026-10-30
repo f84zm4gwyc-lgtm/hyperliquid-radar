@@ -544,3 +544,4 @@
 {"scanned_at_utc": "2026-10-30T15:41:43.678021Z", "source_snapshot_at_utc": "2026-10-30T15:41:43.495000+00:00", "fresh_enough": true, "created_hypotheses": [], "suppressed_by_active_plan": true, "paper_only": true, "validated_trades": 0}
 {"scanned_at_utc": "2026-10-30T16:13:17.644735Z", "source_snapshot_at_utc": "2026-10-30T16:13:17.574000+00:00", "fresh_enough": true, "created_hypotheses": [], "suppressed_by_active_plan": true, "paper_only": true, "validated_trades": 0}
 {"scanned_at_utc": "2026-10-30T16:39:21.602124Z", "source_snapshot_at_utc": "2026-10-30T16:39:21.438000+00:00", "fresh_enough": true, "created_hypotheses": [], "suppressed_by_active_plan": true, "paper_only": true, "validated_trades": 0}
+{"scanned_at_utc": "2026-10-30T16:55:28.982733Z", "source_snapshot_at_utc": "2026-10-30T16:55:28.899000+00:00", "fresh_enough": true, "created_hypotheses": [], "suppressed_by_active_plan": true, "paper_only": true, "validated_trades": 0}
