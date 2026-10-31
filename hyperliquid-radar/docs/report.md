@@ -1,12 +1,12 @@
 # Hyperliquid BTC / ETH — Radar v2
 
-**Snapshot : 2026-10-31T01:45:24.346000+00:00** — collecte 2.9s
+**Snapshot : 2026-10-31T01:49:32.518000+00:00** — collecte 7.9s
 
 **Sécurité** : cours perpétuels, sans clé, sans exécution. Les chiffres ne sont pas des ordres. Vérifier horodatage et conditions de liquidité avant toute entrée.
 
-## BTC — mark 77442.8 | mid 77452.5
+## BTC — mark 77403.0 | mid 77403.5
 
-Prix relevé 2026-10-31T01:45:21.458000+00:00 | funding horaire 0.00125% | OI 42769.03876 BTC | OI Δ depuis dernier contrôle : -0.327% | spread 0.13 bps
+Prix relevé 2026-10-31T01:49:24.573000+00:00 | funding horaire 0.00125% | OI 42716.85828 BTC | OI Δ depuis dernier contrôle : -0.122% | spread 0.13 bps
 
 | Clôture UTC | Clôture | EMA20 | EMA50 | EMA200 | RSI | MACD hist | vol. relat. | ATR | résistance 20 | support 20 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -18,9 +18,9 @@ Prix relevé 2026-10-31T01:45:21.458000+00:00 | funding horaire 0.00125% | OI 42
 
 Graphiques indicatifs (actualisés moins fréquemment que les chiffres) : [1h](BTC_1h.png) · [4h](BTC_4h.png) · [1d](BTC_1d.png)
 
-## ETH — mark 2244.8 | mid 2244.75
+## ETH — mark 2243.3 | mid 2243.15
 
-Prix relevé 2026-10-31T01:45:21.458000+00:00 | funding horaire 0.0010781% | OI 992030.9238000003 ETH | OI Δ depuis dernier contrôle : 0.0095% | spread 0.45 bps
+Prix relevé 2026-10-31T01:49:24.573000+00:00 | funding horaire 0.0010857% | OI 991992.5900000011 ETH | OI Δ depuis dernier contrôle : -0.0039% | spread 0.45 bps
 
 | Clôture UTC | Clôture | EMA20 | EMA50 | EMA200 | RSI | MACD hist | vol. relat. | ATR | résistance 20 | support 20 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
