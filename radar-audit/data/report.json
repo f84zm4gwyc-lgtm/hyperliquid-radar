@@ -1,7 +1,7 @@
 {
   "window_hours": 24,
-  "first_capture_utc": "2026-11-02T13:44:05.542720+00:00",
-  "last_capture_utc": "2026-11-03T13:15:03.330011+00:00",
+  "first_capture_utc": "2026-11-02T14:40:22.334732+00:00",
+  "last_capture_utc": "2026-11-03T14:25:32.164636+00:00",
   "snapshots": 28,
   "observed_ready_snapshots": 2,
   "observed_unready_snapshots": 26,
