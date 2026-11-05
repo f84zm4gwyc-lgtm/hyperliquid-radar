@@ -508,3 +508,4 @@
 {"capture_at_utc":"2026-11-05T21:11:51.180382Z","completeness":"NO_DATA","error_type":"TimeoutError","live_ready_reported":false,"pnl_eligible":false,"reason":"FETCH_FAILED","source":"RENDER_PUBLIC_STATUS_SNAPSHOT"}
 {"capture_at_utc":"2026-11-05T21:55:48.871314Z","completeness":"NO_DATA","error_type":"TimeoutError","live_ready_reported":false,"pnl_eligible":false,"reason":"FETCH_FAILED","source":"RENDER_PUBLIC_STATUS_SNAPSHOT"}
 {"capture_at_utc":"2026-11-05T22:39:23.562806Z","completeness":"NO_DATA","error_type":"TimeoutError","live_ready_reported":false,"pnl_eligible":false,"reason":"FETCH_FAILED","source":"RENDER_PUBLIC_STATUS_SNAPSHOT"}
+{"capture_at_utc":"2026-11-05T23:26:20.877644Z","completeness":"NO_DATA","error_type":"TimeoutError","live_ready_reported":false,"pnl_eligible":false,"reason":"FETCH_FAILED","source":"RENDER_PUBLIC_STATUS_SNAPSHOT"}
