@@ -1,7 +1,7 @@
 {
   "window_hours": 24,
-  "first_capture_utc": "2026-11-06T04:44:42.897338+00:00",
-  "last_capture_utc": "2026-11-07T03:58:18.662528+00:00",
+  "first_capture_utc": "2026-11-06T05:41:42.339293+00:00",
+  "last_capture_utc": "2026-11-07T04:50:53.492754+00:00",
   "snapshots": 28,
   "observed_ready_snapshots": 10,
   "observed_unready_snapshots": 18,
@@ -11,7 +11,7 @@
   "max_gap_minutes": 76.69,
   "gaps_over_20min": 27,
   "uptime_reset_indications": 0,
-  "latest_reason": "ETH_book_stale",
+  "latest_reason": "BTC_15m_candle_stale",
   "coverage": "SPARSE_SAMPLES_NOT_CONTINUOUS_UPTIME",
   "pnl_evaluated": false,
   "critical_note": "GitHub delays and Render sleep can cause invisible outages or missed signals."
